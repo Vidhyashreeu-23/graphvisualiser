@@ -2,25 +2,19 @@ import React from 'react';
 
 const LeftSidebar = () => {
   return (
-    <aside className="w-64 bg-white rounded-lg border border-gray-200 p-4 space-y-4 shadow flex-shrink-0">
-      <div className="w-full h-24 rounded-md bg-gray-50 flex items-center justify-center border border-gray-200">
-        <span className="text-2xl" aria-hidden="true">
-          🧩
-        </span>
+    <aside className="w-64 rounded-xl border border-indigo-100 bg-indigo-50/70 shadow-sm p-4 space-y-4 flex-shrink-0">
+      <div className="rounded-xl bg-white/80 border border-indigo-100 h-20 flex items-center justify-center">
+        <p className="text-sm font-medium text-indigo-700">Graph Tools</p>
       </div>
+      <p className="text-xs text-indigo-800/80">
+        Use these buttons to imagine how you will build and adjust your graph.
+      </p>
       <div className="space-y-2">
-        <div>
-          <h3 className="text-base font-semibold text-gray-900">Tools</h3>
-        </div>
-        <div className="h-px bg-gray-200" />
-        <p className="text-sm text-gray-600">Add nodes, edges, or weights.</p>
-      </div>
-      <div className="space-y-2">
-        {['Add Node', 'Add Edge', 'Assign Weight', 'Reset Canvas'].map((label) => (
+        {['Add Node', 'Add Edge', 'Directed Mode', 'Weighted Mode', 'Reset'].map((label) => (
           <button
             key={label}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-md px-4 py-2"
             type="button"
+            className="w-full text-sm rounded-lg border border-indigo-200 bg-white/90 text-indigo-800 py-2 shadow-sm"
           >
             {label}
           </button>
@@ -31,5 +25,4 @@ const LeftSidebar = () => {
 };
 
 export default LeftSidebar;
-
 
