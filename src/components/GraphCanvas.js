@@ -233,14 +233,14 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
   };
 
   // Generate BFS steps
-  const generateBFSSteps = () => {
+  const generateBFSSteps = (startNodeId) => {
     if (!cyInstanceRef.current || nodes.length === 0) return [];
     
     const adjacencyList = getAdjacencyList();
     const steps = [];
     const queue = [];
     const visited = [];
-    const startNode = nodes[0].id;
+    const startNode = startNodeId || nodes[0].id;
     
     queue.push(startNode);
     visited.push(startNode);
@@ -273,14 +273,14 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
   };
 
   // Generate DFS steps using recursion
-  const generateDFSSteps = () => {
+  const generateDFSSteps = (startNodeId) => {
     if (!cyInstanceRef.current || nodes.length === 0) return [];
     
     const adjacencyList = getAdjacencyList();
     const steps = [];
     const visited = [];
     const stack = [];
-    const startNode = nodes[0].id;
+    const startNode = startNodeId || nodes[0].id;
     
     // Recursive DFS helper
     const dfs = (node) => {
@@ -469,8 +469,11 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
       setEdgeCreationMode(false);
       setFirstNodeForEdge(null);
     },
-    runBFS: () => {
-      const steps = generateBFSSteps();
+    getAvailableNodes: () => {
+      return nodes.map((node) => node.id);
+    },
+    runBFS: (startNode) => {
+      const steps = generateBFSSteps(startNode);
       if (steps.length === 0) {
         alert('Please add nodes to the graph first.');
         return;
@@ -485,8 +488,8 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
         playIntervalRef.current = null;
       }
     },
-    runDFS: () => {
-      const steps = generateDFSSteps();
+    runDFS: (startNode) => {
+      const steps = generateDFSSteps(startNode);
       if (steps.length === 0) {
         alert('Please add nodes to the graph first.');
         return;

@@ -21,6 +21,8 @@ const GraphEditor = () => {
     currentNode: null,
   });
   const [futureAlgorithm, setFutureAlgorithm] = useState(null);
+  const [pendingAlgorithm, setPendingAlgorithm] = useState(null);
+  const [availableNodes, setAvailableNodes] = useState([]);
 
   const handleAddNode = () => {
     if (graphCanvasRef.current) {
@@ -66,17 +68,76 @@ const GraphEditor = () => {
   };
 
   const handleRunBFS = () => {
+    // Reset any running algorithm first
     if (graphCanvasRef.current) {
-      graphCanvasRef.current.runBFS();
+      graphCanvasRef.current.resetAlgorithm();
     }
-    setFutureAlgorithm(null);
+    setAlgorithmState({
+      currentAlgorithm: null,
+      currentStepIndex: -1,
+      isPlaying: false,
+      queue: [],
+      stack: [],
+      visited: [],
+      currentNode: null,
+    });
+    
+    // Get available nodes from GraphCanvas
+    if (graphCanvasRef.current) {
+      const nodes = graphCanvasRef.current.getAvailableNodes();
+      if (nodes.length === 0) {
+        alert('Please add nodes to the graph first.');
+        return;
+      }
+      setAvailableNodes(nodes);
+      setPendingAlgorithm('BFS');
+      setFutureAlgorithm(null);
+    }
   };
 
   const handleRunDFS = () => {
+    // Reset any running algorithm first
     if (graphCanvasRef.current) {
-      graphCanvasRef.current.runDFS();
+      graphCanvasRef.current.resetAlgorithm();
     }
-    setFutureAlgorithm(null);
+    setAlgorithmState({
+      currentAlgorithm: null,
+      currentStepIndex: -1,
+      isPlaying: false,
+      queue: [],
+      stack: [],
+      visited: [],
+      currentNode: null,
+    });
+    
+    // Get available nodes from GraphCanvas
+    if (graphCanvasRef.current) {
+      const nodes = graphCanvasRef.current.getAvailableNodes();
+      if (nodes.length === 0) {
+        alert('Please add nodes to the graph first.');
+        return;
+      }
+      setAvailableNodes(nodes);
+      setPendingAlgorithm('DFS');
+      setFutureAlgorithm(null);
+    }
+  };
+
+  const handleConfirmAlgorithm = ({ startNode, endNode }) => {
+    if (pendingAlgorithm === 'BFS') {
+      if (graphCanvasRef.current) {
+        graphCanvasRef.current.runBFS(startNode);
+      }
+    } else if (pendingAlgorithm === 'DFS') {
+      if (graphCanvasRef.current) {
+        graphCanvasRef.current.runDFS(startNode);
+      }
+    }
+    setPendingAlgorithm(null);
+  };
+
+  const handleCancelAlgorithm = () => {
+    setPendingAlgorithm(null);
   };
 
   const handlePlay = () => {
@@ -105,6 +166,7 @@ const GraphEditor = () => {
       currentNode: null,
     });
     setFutureAlgorithm(null);
+    setPendingAlgorithm(null);
   };
 
   const handleFutureAlgorithm = (algorithmName) => {
@@ -155,7 +217,14 @@ const GraphEditor = () => {
             onStateChange={handleStateChange}
             onAlgorithmStateChange={handleAlgorithmStateChange}
           />
-          <RightSidebar algorithmState={algorithmState} futureAlgorithm={futureAlgorithm} />
+          <RightSidebar
+            algorithmState={algorithmState}
+            futureAlgorithm={futureAlgorithm}
+            pendingAlgorithm={pendingAlgorithm}
+            availableNodes={availableNodes}
+            onConfirmAlgorithm={handleConfirmAlgorithm}
+            onCancelAlgorithm={handleCancelAlgorithm}
+          />
         </div>
       </div>
     </section>
