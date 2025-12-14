@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import cytoscape from 'cytoscape';
 
-const GraphCanvas = forwardRef(({ onStateChange }, ref) => {
+const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) => {
   const cyRef = useRef(null);
   const cyInstanceRef = useRef(null);
   
@@ -12,6 +12,14 @@ const GraphCanvas = forwardRef(({ onStateChange }, ref) => {
   const [isWeighted, setIsWeighted] = useState(false);
   const [edgeCreationMode, setEdgeCreationMode] = useState(false);
   const [firstNodeForEdge, setFirstNodeForEdge] = useState(null);
+
+  // Algorithm state
+  const [bfsSteps, setBfsSteps] = useState([]);
+  const [dfsSteps, setDfsSteps] = useState([]);
+  const [currentAlgorithm, setCurrentAlgorithm] = useState(null);
+  const [currentStepIndex, setCurrentStepIndex] = useState(-1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playIntervalRef = useRef(null);
 
   // Use refs to track current state for event handlers
   const edgeCreationModeRef = useRef(edgeCreationMode);
@@ -190,6 +198,136 @@ const GraphCanvas = forwardRef(({ onStateChange }, ref) => {
     }
   }, [isWeighted, edges]);
 
+  // Get adjacency list from Cytoscape graph
+  const getAdjacencyList = () => {
+    if (!cyInstanceRef.current) return {};
+    
+    const cy = cyInstanceRef.current;
+    const adjacencyList = {};
+    
+    // Initialize all nodes
+    cy.nodes().forEach((node) => {
+      adjacencyList[node.id()] = [];
+    });
+    
+    // Add edges
+    cy.edges().forEach((edge) => {
+      const source = edge.source().id();
+      const target = edge.target().id();
+      
+      if (!adjacencyList[source]) {
+        adjacencyList[source] = [];
+      }
+      adjacencyList[source].push(target);
+      
+      // If undirected, add reverse edge
+      if (!isDirected) {
+        if (!adjacencyList[target]) {
+          adjacencyList[target] = [];
+        }
+        adjacencyList[target].push(source);
+      }
+    });
+    
+    return adjacencyList;
+  };
+
+  // Generate BFS steps
+  const generateBFSSteps = () => {
+    if (!cyInstanceRef.current || nodes.length === 0) return [];
+    
+    const adjacencyList = getAdjacencyList();
+    const steps = [];
+    const queue = [];
+    const visited = [];
+    const startNode = nodes[0].id;
+    
+    queue.push(startNode);
+    visited.push(startNode);
+    
+    steps.push({
+      currentNode: startNode,
+      visited: [...visited],
+      queue: [...queue],
+    });
+    
+    while (queue.length > 0) {
+      const current = queue.shift();
+      const neighbors = adjacencyList[current] || [];
+      
+      for (let i = 0; i < neighbors.length; i++) {
+        const neighbor = neighbors[i];
+        if (!visited.includes(neighbor)) {
+          visited.push(neighbor);
+          queue.push(neighbor);
+          steps.push({
+            currentNode: neighbor,
+            visited: [...visited],
+            queue: [...queue],
+          });
+        }
+      }
+    }
+    
+    return steps;
+  };
+
+  // Generate DFS steps using recursion
+  const generateDFSSteps = () => {
+    if (!cyInstanceRef.current || nodes.length === 0) return [];
+    
+    const adjacencyList = getAdjacencyList();
+    const steps = [];
+    const visited = [];
+    const stack = [];
+    const startNode = nodes[0].id;
+    
+    // Recursive DFS helper
+    const dfs = (node) => {
+      visited.push(node);
+      stack.push(node);
+      
+      steps.push({
+        currentNode: node,
+        visited: [...visited],
+        stack: [...stack],
+      });
+      
+      const neighbors = adjacencyList[node] || [];
+      for (let i = 0; i < neighbors.length; i++) {
+        const neighbor = neighbors[i];
+        if (!visited.includes(neighbor)) {
+          dfs(neighbor);
+        }
+      }
+      
+      stack.pop();
+    };
+    
+    dfs(startNode);
+    return steps;
+  };
+
+  // Apply algorithm visualization
+  const applyAlgorithmVisualization = (currentNode, visited) => {
+    if (!cyInstanceRef.current) return;
+    
+    const cy = cyInstanceRef.current;
+    
+    // Reset all nodes to default color
+    cy.nodes().style('background-color', '#4f46e5');
+    
+    // Color visited nodes green
+    visited.forEach((nodeId) => {
+      cy.getElementById(nodeId).style('background-color', '#10b981');
+    });
+    
+    // Color current node yellow
+    if (currentNode) {
+      cy.getElementById(currentNode).style('background-color', '#eab308');
+    }
+  };
+
   // Handle node click for edge creation
   const handleNodeClickForEdge = (nodeId) => {
     const currentFirstNode = firstNodeForEdgeRef.current;
@@ -331,7 +469,146 @@ const GraphCanvas = forwardRef(({ onStateChange }, ref) => {
       setEdgeCreationMode(false);
       setFirstNodeForEdge(null);
     },
+    runBFS: () => {
+      const steps = generateBFSSteps();
+      if (steps.length === 0) {
+        alert('Please add nodes to the graph first.');
+        return;
+      }
+      setBfsSteps(steps);
+      setDfsSteps([]);
+      setCurrentAlgorithm('BFS');
+      setCurrentStepIndex(0);
+      setIsPlaying(false);
+      if (playIntervalRef.current) {
+        clearInterval(playIntervalRef.current);
+        playIntervalRef.current = null;
+      }
+    },
+    runDFS: () => {
+      const steps = generateDFSSteps();
+      if (steps.length === 0) {
+        alert('Please add nodes to the graph first.');
+        return;
+      }
+      setDfsSteps(steps);
+      setBfsSteps([]);
+      setCurrentAlgorithm('DFS');
+      setCurrentStepIndex(0);
+      setIsPlaying(false);
+      if (playIntervalRef.current) {
+        clearInterval(playIntervalRef.current);
+        playIntervalRef.current = null;
+      }
+    },
+    playAlgorithm: () => {
+      if (currentAlgorithm && currentStepIndex >= 0) {
+        setIsPlaying(true);
+      }
+    },
+    nextStep: () => {
+      if (currentAlgorithm === 'BFS' && currentStepIndex < bfsSteps.length - 1) {
+        setCurrentStepIndex(currentStepIndex + 1);
+        setIsPlaying(false);
+      } else if (currentAlgorithm === 'DFS' && currentStepIndex < dfsSteps.length - 1) {
+        setCurrentStepIndex(currentStepIndex + 1);
+        setIsPlaying(false);
+      }
+    },
+    resetAlgorithm: () => {
+      setCurrentAlgorithm(null);
+      setCurrentStepIndex(-1);
+      setBfsSteps([]);
+      setDfsSteps([]);
+      setIsPlaying(false);
+      if (playIntervalRef.current) {
+        clearInterval(playIntervalRef.current);
+        playIntervalRef.current = null;
+      }
+      // Reset node colors
+      if (cyInstanceRef.current) {
+        cyInstanceRef.current.nodes().style('background-color', '#4f46e5');
+      }
+      if (onAlgorithmStateChange) {
+        onAlgorithmStateChange({
+          currentAlgorithm: null,
+          currentStepIndex: -1,
+          isPlaying: false,
+          queue: [],
+          stack: [],
+          visited: [],
+          currentNode: null,
+        });
+      }
+    },
   }));
+
+  // Handle step visualization
+  useEffect(() => {
+    if (currentStepIndex < 0 || !currentAlgorithm) {
+      return;
+    }
+
+    let currentStep = null;
+    if (currentAlgorithm === 'BFS' && bfsSteps[currentStepIndex]) {
+      currentStep = bfsSteps[currentStepIndex];
+    } else if (currentAlgorithm === 'DFS' && dfsSteps[currentStepIndex]) {
+      currentStep = dfsSteps[currentStepIndex];
+    }
+
+    if (currentStep) {
+      applyAlgorithmVisualization(currentStep.currentNode, currentStep.visited);
+      
+      if (onAlgorithmStateChange) {
+        const steps = currentAlgorithm === 'BFS' ? bfsSteps : dfsSteps;
+        onAlgorithmStateChange({
+          currentAlgorithm,
+          currentStepIndex,
+          isPlaying,
+          totalSteps: steps.length,
+          queue: currentStep.queue || [],
+          stack: currentStep.stack || [],
+          visited: currentStep.visited || [],
+          currentNode: currentStep.currentNode,
+        });
+      }
+    }
+  }, [currentStepIndex, currentAlgorithm, bfsSteps, dfsSteps, isPlaying, onAlgorithmStateChange]);
+
+  // Handle Play animation
+  useEffect(() => {
+    if (!isPlaying) {
+      if (playIntervalRef.current) {
+        clearInterval(playIntervalRef.current);
+        playIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const steps = currentAlgorithm === 'BFS' ? bfsSteps : dfsSteps;
+    if (currentStepIndex >= steps.length - 1) {
+      setIsPlaying(false);
+      return;
+    }
+
+    playIntervalRef.current = setInterval(() => {
+      setCurrentStepIndex((prev) => {
+        const currentSteps = currentAlgorithm === 'BFS' ? bfsSteps : dfsSteps;
+        if (prev >= currentSteps.length - 1) {
+          setIsPlaying(false);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 500);
+
+    return () => {
+      if (playIntervalRef.current) {
+        clearInterval(playIntervalRef.current);
+        playIntervalRef.current = null;
+      }
+    };
+  }, [isPlaying, currentStepIndex, currentAlgorithm, bfsSteps, dfsSteps]);
 
   return (
     <div className="flex-1 h-full bg-gray-50 border-dashed border border-gray-300 rounded-xl">

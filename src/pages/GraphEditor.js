@@ -11,6 +11,16 @@ const GraphEditor = () => {
     isWeighted: false,
     edgeCreationMode: false,
   });
+  const [algorithmState, setAlgorithmState] = useState({
+    currentAlgorithm: null,
+    currentStepIndex: -1,
+    isPlaying: false,
+    queue: [],
+    stack: [],
+    visited: [],
+    currentNode: null,
+  });
+  const [futureAlgorithm, setFutureAlgorithm] = useState(null);
 
   const handleAddNode = () => {
     if (graphCanvasRef.current) {
@@ -51,6 +61,65 @@ const GraphEditor = () => {
     setGraphState(newState);
   };
 
+  const handleAlgorithmStateChange = (newState) => {
+    setAlgorithmState(newState);
+  };
+
+  const handleRunBFS = () => {
+    if (graphCanvasRef.current) {
+      graphCanvasRef.current.runBFS();
+    }
+    setFutureAlgorithm(null);
+  };
+
+  const handleRunDFS = () => {
+    if (graphCanvasRef.current) {
+      graphCanvasRef.current.runDFS();
+    }
+    setFutureAlgorithm(null);
+  };
+
+  const handlePlay = () => {
+    if (graphCanvasRef.current) {
+      graphCanvasRef.current.playAlgorithm();
+    }
+  };
+
+  const handleNextStep = () => {
+    if (graphCanvasRef.current) {
+      graphCanvasRef.current.nextStep();
+    }
+  };
+
+  const handleResetAlgorithm = () => {
+    if (graphCanvasRef.current) {
+      graphCanvasRef.current.resetAlgorithm();
+    }
+    setAlgorithmState({
+      currentAlgorithm: null,
+      currentStepIndex: -1,
+      isPlaying: false,
+      queue: [],
+      stack: [],
+      visited: [],
+      currentNode: null,
+    });
+    setFutureAlgorithm(null);
+  };
+
+  const handleFutureAlgorithm = (algorithmName) => {
+    setFutureAlgorithm(algorithmName);
+    setAlgorithmState({
+      currentAlgorithm: algorithmName,
+      currentStepIndex: -1,
+      isPlaying: false,
+      queue: [],
+      stack: [],
+      visited: [],
+      currentNode: null,
+    });
+  };
+
   return (
     <section className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-sky-50 text-slate-900">
       <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 min-h-screen flex flex-col gap-4">
@@ -74,9 +143,19 @@ const GraphEditor = () => {
             isDirected={graphState.isDirected}
             isWeighted={graphState.isWeighted}
             isEdgeMode={graphState.edgeCreationMode}
+            onRunBFS={handleRunBFS}
+            onRunDFS={handleRunDFS}
+            onPlay={handlePlay}
+            onNextStep={handleNextStep}
+            onResetAlgorithm={handleResetAlgorithm}
+            onFutureAlgorithm={handleFutureAlgorithm}
           />
-          <GraphCanvas ref={graphCanvasRef} onStateChange={handleStateChange} />
-          <RightSidebar />
+          <GraphCanvas
+            ref={graphCanvasRef}
+            onStateChange={handleStateChange}
+            onAlgorithmStateChange={handleAlgorithmStateChange}
+          />
+          <RightSidebar algorithmState={algorithmState} futureAlgorithm={futureAlgorithm} />
         </div>
       </div>
     </section>
