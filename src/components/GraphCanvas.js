@@ -233,7 +233,9 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
   };
 
   // Generate BFS steps
-  const generateBFSSteps = (startNodeId) => {
+  // Optionally supports shortest path in unweighted graphs when an end node is provided
+  // and the user explicitly chooses that goal.
+  const generateBFSSteps = (startNodeId, endNodeId, algorithmGoal) => {
     if (!cyInstanceRef.current || nodes.length === 0) return [];
     
     const adjacencyList = getAdjacencyList();
@@ -241,17 +243,36 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
     const queue = [];
     const visited = [];
     const startNode = startNodeId || nodes[0].id;
+    // Only enable shortest path mode when the user selected it,
+    // the graph is unweighted, and we have an end node.
+    const useShortestPath =
+      algorithmGoal === 'SHORTEST_PATH' && !!endNodeId && !isWeighted;
+    const parent = {};
+    const distance = {};
+    let shortestPath = null;
+    let foundEnd = false;
     
     queue.push(startNode);
     visited.push(startNode);
+    if (useShortestPath) {
+      parent[startNode] = null;
+      distance[startNode] = 0;
+    }
     
-    steps.push({
+    const firstStep = {
       currentNode: startNode,
       visited: [...visited],
       queue: [...queue],
-    });
+    };
+    if (useShortestPath) {
+      firstStep.parent = { ...parent };
+      firstStep.distance = { ...distance };
+      firstStep.startNode = startNode;
+      firstStep.endNode = endNodeId;
+    }
+    steps.push(firstStep);
     
-    while (queue.length > 0) {
+    while (queue.length > 0 && !foundEnd) {
       const current = queue.shift();
       const neighbors = adjacencyList[current] || [];
       
@@ -260,20 +281,69 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
         if (!visited.includes(neighbor)) {
           visited.push(neighbor);
           queue.push(neighbor);
-          steps.push({
+          if (useShortestPath) {
+            parent[neighbor] = current;
+            distance[neighbor] = distance[current] + 1;
+          }
+
+          const step = {
             currentNode: neighbor,
             visited: [...visited],
             queue: [...queue],
-          });
+          };
+
+          if (useShortestPath) {
+            step.parent = { ...parent };
+            step.distance = { ...distance };
+            step.startNode = startNode;
+            step.endNode = endNodeId;
+          }
+
+          // If we are looking for a shortest path in an unweighted graph, stop when we reach endNode
+          if (useShortestPath && neighbor === endNodeId) {
+            // Reconstruct shortest path from parent pointers
+            const path = [];
+            let currentNode = neighbor;
+            while (currentNode !== null && currentNode !== undefined) {
+              path.unshift(currentNode);
+              currentNode = parent[currentNode];
+            }
+            shortestPath = path;
+            step.shortestPath = [...shortestPath];
+            foundEnd = true;
+          }
+
+          steps.push(step);
+
+          if (foundEnd) {
+            break;
+          }
         }
       }
     }
-    
+
+    // Final summary step with path information (if requested and computed)
+    if (useShortestPath) {
+      steps.push({
+        currentNode: null,
+        visited: [...visited],
+        queue: [],
+        parent: { ...parent },
+        distance: { ...distance },
+        shortestPath: shortestPath ? [...shortestPath] : [],
+        pathFound: !!shortestPath,
+        startNode: startNode,
+        endNode: endNodeId,
+      });
+    }
+
     return steps;
   };
 
   // Generate DFS steps using recursion
-  const generateDFSSteps = (startNodeId) => {
+  // Optionally supports finding one path between start and end nodes (not necessarily shortest)
+  // when the user chooses the PATH_EXISTENCE goal.
+  const generateDFSSteps = (startNodeId, endNodeId, algorithmGoal) => {
     if (!cyInstanceRef.current || nodes.length === 0) return [];
     
     const adjacencyList = getAdjacencyList();
@@ -281,30 +351,69 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
     const visited = [];
     const stack = [];
     const startNode = startNodeId || nodes[0].id;
+    const usePathExistence = algorithmGoal === 'PATH_EXISTENCE' && !!endNodeId;
+    const path = [];
+    let foundEnd = false;
+    let foundPath = null;
     
     // Recursive DFS helper
     const dfs = (node) => {
+      if (foundEnd) {
+        return;
+      }
+
       visited.push(node);
       stack.push(node);
+      path.push(node);
       
-      steps.push({
+      const step = {
         currentNode: node,
         visited: [...visited],
         stack: [...stack],
-      });
+        // Track the current recursion path so we can show one concrete path if needed.
+        path: [...path],
+        startNode: startNode,
+        endNode: endNodeId || null,
+      };
+
+      steps.push(step);
+
+      if (usePathExistence && node === endNodeId) {
+        foundEnd = true;
+        foundPath = [...path];
+        return;
+      }
       
       const neighbors = adjacencyList[node] || [];
       for (let i = 0; i < neighbors.length; i++) {
         const neighbor = neighbors[i];
         if (!visited.includes(neighbor)) {
           dfs(neighbor);
+          if (foundEnd) {
+            break;
+          }
         }
       }
       
       stack.pop();
+      path.pop();
     };
     
     dfs(startNode);
+
+    // Final summary step with path information (only when path existence was requested)
+    if (usePathExistence) {
+      steps.push({
+        currentNode: null,
+        visited: [...visited],
+        stack: [],
+        path: foundPath ? [...foundPath] : [],
+        foundPath: !!foundPath,
+        startNode: startNode,
+        endNode: endNodeId,
+      });
+    }
+
     return steps;
   };
 
@@ -472,8 +581,8 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
     getAvailableNodes: () => {
       return nodes.map((node) => node.id);
     },
-    runBFS: (startNode) => {
-      const steps = generateBFSSteps(startNode);
+    runBFS: (startNode, endNode, algorithmGoal) => {
+      const steps = generateBFSSteps(startNode, endNode, algorithmGoal);
       if (steps.length === 0) {
         alert('Please add nodes to the graph first.');
         return;
@@ -488,8 +597,8 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
         playIntervalRef.current = null;
       }
     },
-    runDFS: (startNode) => {
-      const steps = generateDFSSteps(startNode);
+    runDFS: (startNode, endNode, algorithmGoal) => {
+      const steps = generateDFSSteps(startNode, endNode, algorithmGoal);
       if (steps.length === 0) {
         alert('Please add nodes to the graph first.');
         return;
@@ -564,7 +673,8 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
       
       if (onAlgorithmStateChange) {
         const steps = currentAlgorithm === 'BFS' ? bfsSteps : dfsSteps;
-        onAlgorithmStateChange({
+        const previousStep = currentStepIndex > 0 ? steps[currentStepIndex - 1] : null;
+        const statePayload = {
           currentAlgorithm,
           currentStepIndex,
           isPlaying,
@@ -573,7 +683,37 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
           stack: currentStep.stack || [],
           visited: currentStep.visited || [],
           currentNode: currentStep.currentNode,
-        });
+          currentStep: currentStep,
+          previousStep: previousStep,
+        };
+
+        // Propagate optional path-related metadata for BFS/DFS
+        if (currentStep.startNode) {
+          statePayload.startNode = currentStep.startNode;
+        }
+        if (currentStep.endNode) {
+          statePayload.endNode = currentStep.endNode;
+        }
+        if (currentStep.shortestPath) {
+          statePayload.shortestPath = currentStep.shortestPath;
+        }
+        if (currentStep.distance) {
+          statePayload.distance = currentStep.distance;
+        }
+        if (currentStep.parent) {
+          statePayload.parent = currentStep.parent;
+        }
+        if (currentStep.path) {
+          statePayload.path = currentStep.path;
+        }
+        if (typeof currentStep.foundPath === 'boolean') {
+          statePayload.foundPath = currentStep.foundPath;
+        }
+        if (typeof currentStep.pathFound === 'boolean') {
+          statePayload.pathFound = currentStep.pathFound;
+        }
+
+        onAlgorithmStateChange(statePayload);
       }
     }
   }, [currentStepIndex, currentAlgorithm, bfsSteps, dfsSteps, isPlaying, onAlgorithmStateChange]);

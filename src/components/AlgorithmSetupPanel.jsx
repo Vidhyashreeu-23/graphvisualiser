@@ -3,6 +3,9 @@ import React, { useState } from 'react';
 const AlgorithmSetupPanel = ({ pendingAlgorithm, onConfirm, onCancel, availableNodes }) => {
   const [startNode, setStartNode] = useState('');
   const [endNode, setEndNode] = useState('');
+  // Let the user choose what they want the algorithm to do.
+  // Default is simple traversal so existing behavior stays the same.
+  const [algorithmGoal, setAlgorithmGoal] = useState('TRAVERSAL');
 
   const handleConfirm = () => {
     if (!startNode.trim()) {
@@ -25,12 +28,14 @@ const AlgorithmSetupPanel = ({ pendingAlgorithm, onConfirm, onCancel, availableN
     onConfirm({
       startNode: startNode.trim().toUpperCase(),
       endNode: endNode.trim() ? endNode.trim().toUpperCase() : null,
+      algorithmGoal,
     });
   };
 
   const handleCancel = () => {
     setStartNode('');
     setEndNode('');
+    setAlgorithmGoal('TRAVERSAL');
     onCancel();
   };
 
@@ -57,6 +62,66 @@ const AlgorithmSetupPanel = ({ pendingAlgorithm, onConfirm, onCancel, availableN
           <p className="text-xs text-blue-900/60 mt-1">
             Enter the node ID to start from (A-Z)
           </p>
+        </div>
+
+        {/* Algorithm goal selection – kept simple and close to setup inputs */}
+        <div>
+          <p className="block text-xs font-medium text-blue-900 mb-1">
+            Algorithm Goal
+          </p>
+          <p className="text-[11px] text-blue-900/70 mb-1">
+            Choose what you want {pendingAlgorithm} to do before it runs.
+          </p>
+          <div className="space-y-1 text-xs text-blue-900/90">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="algorithmGoal"
+                value="TRAVERSAL"
+                checked={algorithmGoal === 'TRAVERSAL'}
+                onChange={() => setAlgorithmGoal('TRAVERSAL')}
+              />
+              <span>
+                Traversal only
+                <span className="text-blue-900/60"> – visit nodes in order without focusing on a specific path.</span>
+              </span>
+            </label>
+
+            {pendingAlgorithm === 'BFS' && (
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="algorithmGoal"
+                  value="SHORTEST_PATH"
+                  checked={algorithmGoal === 'SHORTEST_PATH'}
+                  onChange={() => setAlgorithmGoal('SHORTEST_PATH')}
+                />
+                <span>
+                  Shortest path (unweighted)
+                  <span className="text-blue-900/60"> – BFS finds the shortest path from start to end.</span>
+                </span>
+              </label>
+            )}
+
+            {pendingAlgorithm === 'DFS' && (
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="algorithmGoal"
+                  value="PATH_EXISTENCE"
+                  checked={algorithmGoal === 'PATH_EXISTENCE'}
+                  onChange={() => setAlgorithmGoal('PATH_EXISTENCE')}
+                />
+                <span>
+                  Path existence
+                  <span className="text-blue-900/60">
+                    {' '}
+                    – DFS looks for one path from start to end (not necessarily shortest).
+                  </span>
+                </span>
+              </label>
+            )}
+          </div>
         </div>
 
         <div>

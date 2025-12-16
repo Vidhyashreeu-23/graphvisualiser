@@ -19,6 +19,8 @@ const GraphEditor = () => {
     stack: [],
     visited: [],
     currentNode: null,
+    // Default goal is traversal so existing behavior feels the same.
+    algorithmGoal: 'TRAVERSAL',
   });
   const [futureAlgorithm, setFutureAlgorithm] = useState(null);
   const [pendingAlgorithm, setPendingAlgorithm] = useState(null);
@@ -64,7 +66,12 @@ const GraphEditor = () => {
   };
 
   const handleAlgorithmStateChange = (newState) => {
-    setAlgorithmState(newState);
+    // Merge incoming algorithm state so we keep things like algorithmGoal
+    // that are decided in the UI before running the algorithm.
+    setAlgorithmState((prev) => ({
+      ...prev,
+      ...newState,
+    }));
   };
 
   const handleRunBFS = () => {
@@ -72,7 +79,8 @@ const GraphEditor = () => {
     if (graphCanvasRef.current) {
       graphCanvasRef.current.resetAlgorithm();
     }
-    setAlgorithmState({
+    setAlgorithmState((prev) => ({
+      ...prev,
       currentAlgorithm: null,
       currentStepIndex: -1,
       isPlaying: false,
@@ -80,7 +88,8 @@ const GraphEditor = () => {
       stack: [],
       visited: [],
       currentNode: null,
-    });
+      algorithmGoal: 'TRAVERSAL',
+    }));
     
     // Get available nodes from GraphCanvas
     if (graphCanvasRef.current) {
@@ -100,7 +109,8 @@ const GraphEditor = () => {
     if (graphCanvasRef.current) {
       graphCanvasRef.current.resetAlgorithm();
     }
-    setAlgorithmState({
+    setAlgorithmState((prev) => ({
+      ...prev,
       currentAlgorithm: null,
       currentStepIndex: -1,
       isPlaying: false,
@@ -108,7 +118,8 @@ const GraphEditor = () => {
       stack: [],
       visited: [],
       currentNode: null,
-    });
+      algorithmGoal: 'TRAVERSAL',
+    }));
     
     // Get available nodes from GraphCanvas
     if (graphCanvasRef.current) {
@@ -123,16 +134,34 @@ const GraphEditor = () => {
     }
   };
 
-  const handleConfirmAlgorithm = ({ startNode, endNode }) => {
+  const handleConfirmAlgorithm = ({ startNode, endNode, algorithmGoal }) => {
+    // For shortest path / path existence we require an end node.
+    if (pendingAlgorithm === 'BFS' && algorithmGoal === 'SHORTEST_PATH' && !endNode) {
+      alert('Please enter an end node to find shortest path.');
+      return;
+    }
+
+    if (pendingAlgorithm === 'DFS' && algorithmGoal === 'PATH_EXISTENCE' && !endNode) {
+      alert('Please enter an end node to check path existence.');
+      return;
+    }
+
     if (pendingAlgorithm === 'BFS') {
       if (graphCanvasRef.current) {
-        graphCanvasRef.current.runBFS(startNode);
+        graphCanvasRef.current.runBFS(startNode, endNode, algorithmGoal);
       }
     } else if (pendingAlgorithm === 'DFS') {
       if (graphCanvasRef.current) {
-        graphCanvasRef.current.runDFS(startNode);
+        graphCanvasRef.current.runDFS(startNode, endNode, algorithmGoal);
       }
     }
+
+    // Remember the chosen goal so the right sidebar can describe results correctly.
+    setAlgorithmState((prev) => ({
+      ...prev,
+      algorithmGoal: algorithmGoal || 'TRAVERSAL',
+    }));
+
     setPendingAlgorithm(null);
   };
 
@@ -156,7 +185,8 @@ const GraphEditor = () => {
     if (graphCanvasRef.current) {
       graphCanvasRef.current.resetAlgorithm();
     }
-    setAlgorithmState({
+    setAlgorithmState((prev) => ({
+      ...prev,
       currentAlgorithm: null,
       currentStepIndex: -1,
       isPlaying: false,
@@ -164,14 +194,16 @@ const GraphEditor = () => {
       stack: [],
       visited: [],
       currentNode: null,
-    });
+      algorithmGoal: 'TRAVERSAL',
+    }));
     setFutureAlgorithm(null);
     setPendingAlgorithm(null);
   };
 
   const handleFutureAlgorithm = (algorithmName) => {
     setFutureAlgorithm(algorithmName);
-    setAlgorithmState({
+    setAlgorithmState((prev) => ({
+      ...prev,
       currentAlgorithm: algorithmName,
       currentStepIndex: -1,
       isPlaying: false,
@@ -179,7 +211,8 @@ const GraphEditor = () => {
       stack: [],
       visited: [],
       currentNode: null,
-    });
+      algorithmGoal: 'TRAVERSAL',
+    }));
   };
 
   return (
