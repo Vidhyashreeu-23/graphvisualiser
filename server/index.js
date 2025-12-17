@@ -39,6 +39,7 @@ function buildPrompt(stepSnapshot) {
     finalPath,
     startNode,
     endNode,
+    outcome,
   } = stepSnapshot || {};
 
   const lines = [];
@@ -66,17 +67,66 @@ function buildPrompt(stepSnapshot) {
     lines.push(`Previous node: ${previousNode}`);
   }
 
-  // Current data structures for natural explanation.
+  // If this is the final step, focus on the outcome instead of queue/stack mechanics.
+  if (isFinalStep) {
+    lines.push('');
+    lines.push('Final outcome:');
+    if (typeof outcome === 'string') {
+      lines.push(`- Outcome: ${outcome}`);
+    }
+    if (finalPathList.length > 0) {
+      lines.push(`- Final path: ${finalPathList.join(' → ')}`);
+    }
+    lines.push('');
+    lines.push('Explanation instructions:');
+
+    if (outcome === 'TARGET_NOT_FOUND') {
+      lines.push(
+        'This is the final step of the algorithm.',
+        'The target node was not found.',
+        'Explain clearly why no path exists between the start and end nodes.',
+        'Do NOT mention queues, stacks, or traversal mechanics.'
+      );
+    } else if (outcome === 'TARGET_FOUND') {
+      lines.push(
+        'This is the final step of the algorithm.',
+        'The target node was found.',
+        'Explain why the shown path is valid.'
+      );
+
+      if (algo === 'BFS' && goal === 'SHORTEST_PATH') {
+        lines.push(
+          'Explain why this path is guaranteed to be one of the shortest paths in an unweighted graph.'
+        );
+      }
+
+      if (algo === 'DFS') {
+        lines.push('Mention that the path is valid but not guaranteed to be shortest.');
+      }
+    } else {
+      // Fallback wording if outcome is missing but isFinalStep is true.
+      lines.push(
+        'This is the final step of the algorithm.',
+        'Explain the overall result of the search between the start and end nodes.',
+        'Do NOT mention queues, stacks, or traversal mechanics.'
+      );
+    }
+
+    lines.push(
+      'Do not explain queue or stack operations.',
+      'Do not mention previous steps.',
+      'Answer in 2–3 clear, student-friendly sentences.'
+    );
+
+    return lines.join('\n');
+  }
+
+  // Current data structures for natural explanation (non-final steps only).
   lines.push('');
   lines.push('Current data structures:');
   lines.push(`- Queue (front → back): [${queue.join(', ')}]`);
   lines.push(`- Stack (top is last): [${stack.join(', ')}]`);
   lines.push(`- Visited: [${visited.join(', ')}]`);
-
-  if (finalPathList.length > 0) {
-    lines.push('');
-    lines.push(`Shortest path found: ${finalPathList.join(' → ')}`);
-  }
 
   lines.push('');
   lines.push('Explanation instructions:');
@@ -85,28 +135,6 @@ function buildPrompt(stepSnapshot) {
     lines.push(
       '- This is the first step. Briefly explain what BFS or DFS does and why the start node is chosen.'
     );
-  } else if (isFinalStep) {
-    lines.push('- This is the final step of the run.');
-    if (algo === 'BFS' && goal === 'SHORTEST_PATH' && finalPathList.length > 0 && startNode && endNode) {
-      lines.push(
-        `- The algorithm found the shortest path from ${startNode} to ${endNode}: ${finalPathList.join(' → ')}.`
-      );
-      lines.push(
-        '- Explain WHY this path is guaranteed to be shortest: BFS explores nodes level by level (by distance from start), so when it first reaches the end node, that path must be shortest in an unweighted graph.'
-      );
-      lines.push(
-        '- Mention that BFS processes nodes in order of increasing distance, so the first path found to the end node is always shortest.'
-      );
-    } else if (algo === 'DFS' && goal === 'PATH_EXISTENCE' && finalPathList.length > 0 && startNode && endNode) {
-      lines.push(
-        `- The algorithm found a path from ${startNode} to ${endNode}: ${finalPathList.join(' → ')}.`
-      );
-      lines.push(
-        '- Explain that this path is valid and connects start to end, but it is NOT guaranteed to be shortest because DFS explores deeply before backtracking, so it may find a longer path first.'
-      );
-    } else {
-      lines.push('- Explain why the search stops at this step based on the data structures.');
-    }
   } else {
     lines.push(
       '- This is a middle step. Explain why this node is processed now and what the queue or stack represents at this moment.'
@@ -133,7 +161,6 @@ function buildPrompt(stepSnapshot) {
 
 /**
  * Very small, deterministic fallback explanations driven by reasonCode.
- * This keeps explanations available even if the Groq API fails.
  */
 function getFallbackExplanation(stepSnapshot) {
   const { algorithm, currentNode } = stepSnapshot || {};
@@ -177,6 +204,7 @@ Special cases:
 Keep explanations to 2–3 short sentences.
 Do NOT predict future steps.
 Do NOT invent nodes or edges.
+If this is the final step, do NOT explain queue or stack behavior. Only explain the final outcome of the algorithm.
 `;
 
   const userPrompt = buildPrompt(stepSnapshot);

@@ -17,6 +17,9 @@ const AlgorithmInfo = ({ algorithmState, futureAlgorithm = null }) => {
     foundPath,
     pathFound,
     algorithmGoal,
+    outcome,
+    finalPath: stateFinalPath,
+    isFinalStep: stateIsFinalStep,
     previousStep,
   } = algorithmState || {};
 
@@ -49,14 +52,31 @@ const AlgorithmInfo = ({ algorithmState, futureAlgorithm = null }) => {
       setExplanation('AI explanation is taking longer than expected. Please check your API key and connection.');
     }, 10000); // 10 second timeout
     
-    const isFinalStep = totalSteps > 0 && currentStepIndex === totalSteps - 1;
+    const isFinalStep = stateIsFinalStep === true || (totalSteps > 0 && currentStepIndex === totalSteps - 1);
 
     // finalPath is used only when a goal actually asks for a path.
-    let finalPath = null;
-    if (algorithmGoal === 'SHORTEST_PATH' && Array.isArray(shortestPath) && shortestPath.length > 0) {
-      finalPath = shortestPath;
-    } else if (algorithmGoal === 'PATH_EXISTENCE' && (foundPath || pathFound) && Array.isArray(path) && path.length > 0) {
-      finalPath = path;
+    // Prefer any explicit finalPath from the step, then fall back to existing fields.
+    let finalPath = Array.isArray(stateFinalPath) && stateFinalPath.length > 0 ? stateFinalPath : null;
+    if (!finalPath) {
+      if (algorithmGoal === 'SHORTEST_PATH' && Array.isArray(shortestPath) && shortestPath.length > 0) {
+        finalPath = shortestPath;
+      } else if (
+        algorithmGoal === 'PATH_EXISTENCE' &&
+        (foundPath || pathFound) &&
+        Array.isArray(path) &&
+        path.length > 0
+      ) {
+        finalPath = path;
+      }
+    }
+
+    // Derive a simple outcome label for the final step when not provided.
+    let derivedOutcome = outcome || null;
+    if (!derivedOutcome && isFinalStep) {
+      const hasPath = Array.isArray(finalPath) && finalPath.length > 0;
+      if (algorithmGoal === 'SHORTEST_PATH' || algorithmGoal === 'PATH_EXISTENCE') {
+        derivedOutcome = hasPath ? 'TARGET_FOUND' : 'TARGET_NOT_FOUND';
+      }
     }
 
     getAIExplanation({
@@ -73,6 +93,7 @@ const AlgorithmInfo = ({ algorithmState, futureAlgorithm = null }) => {
       stepIndex: currentStepIndex || 0,
       isFinalStep,
       finalPath: finalPath || null,
+      outcome: derivedOutcome || null,
       startNode: startNode || null,
       endNode: endNode || null,
     })

@@ -8,18 +8,6 @@ const cardData = [
     description: 'Start building a graph from scratch using simple tools.',
     action: 'Start Creating',
   },
-  {
-    key: 'import',
-    title: 'Import Graph',
-    description: 'Upload adjacency lists or matrices from your files.',
-    action: 'Import File',
-  },
-  {
-    key: 'demo',
-    title: 'Try Demo Graph',
-    description: 'Open a ready-made graph to preview the editor layout.',
-    action: 'Try Demo',
-  },
 ];
 
 const LandingPage = () => {
@@ -39,11 +27,11 @@ const LandingPage = () => {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3 mt-16">
+        <div className="grid gap-6 md:grid-cols-1 mt-16 place-items-center">
           {cardData.map((card) => (
             <div
               key={card.key}
-              className="bg-white/10 border border-white/20 rounded-2xl p-6 flex flex-col items-center text-center backdrop-blur"
+              className="bg-white/10 border border-white/20 rounded-2xl p-6 flex flex-col items-center text-center backdrop-blur max-w-sm w-full"
             >
               <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center mb-5">
                 <span className="text-2xl text-indigo-700" aria-hidden="true">

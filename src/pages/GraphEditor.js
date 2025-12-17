@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LeftSidebar from '../components/LeftSidebar';
 import GraphCanvas from '../components/GraphCanvas';
 import RightSidebar from '../components/RightSidebar';
+import AlgorithmComparisonPanel from '../components/AlgorithmComparisonPanel';
 
 const GraphEditor = () => {
   const graphCanvasRef = useRef(null);
@@ -25,6 +26,8 @@ const GraphEditor = () => {
   const [futureAlgorithm, setFutureAlgorithm] = useState(null);
   const [pendingAlgorithm, setPendingAlgorithm] = useState(null);
   const [availableNodes, setAvailableNodes] = useState([]);
+  const [isAlgorithmComplete, setIsAlgorithmComplete] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
 
   const handleAddNode = () => {
     if (graphCanvasRef.current) {
@@ -68,10 +71,24 @@ const GraphEditor = () => {
   const handleAlgorithmStateChange = (newState) => {
     // Merge incoming algorithm state so we keep things like algorithmGoal
     // that are decided in the UI before running the algorithm.
-    setAlgorithmState((prev) => ({
+    setAlgorithmState((prev) => {
+      const merged = {
       ...prev,
       ...newState,
-    }));
+      };
+
+      const { currentAlgorithm, currentStepIndex, totalSteps } = merged;
+      const completed =
+        !!currentAlgorithm &&
+        typeof currentStepIndex === 'number' &&
+        typeof totalSteps === 'number' &&
+        totalSteps > 0 &&
+        currentStepIndex === totalSteps - 1;
+
+      setIsAlgorithmComplete(completed);
+
+      return merged;
+    });
   };
 
   const handleRunBFS = () => {
@@ -90,6 +107,8 @@ const GraphEditor = () => {
       currentNode: null,
       algorithmGoal: 'TRAVERSAL',
     }));
+    setIsAlgorithmComplete(false);
+    setShowComparison(false);
     
     // Get available nodes from GraphCanvas
     if (graphCanvasRef.current) {
@@ -120,6 +139,8 @@ const GraphEditor = () => {
       currentNode: null,
       algorithmGoal: 'TRAVERSAL',
     }));
+    setIsAlgorithmComplete(false);
+    setShowComparison(false);
     
     // Get available nodes from GraphCanvas
     if (graphCanvasRef.current) {
@@ -196,6 +217,8 @@ const GraphEditor = () => {
       currentNode: null,
       algorithmGoal: 'TRAVERSAL',
     }));
+    setIsAlgorithmComplete(false);
+    setShowComparison(false);
     setFutureAlgorithm(null);
     setPendingAlgorithm(null);
   };
@@ -228,7 +251,19 @@ const GraphEditor = () => {
           </Link>
         </nav>
 
-        <div className="flex gap-4 h-[90%] rounded-2xl border border-indigo-100 bg-white/60 p-4 shadow-sm min-h-[520px]">
+        {isAlgorithmComplete && algorithmState.currentAlgorithm && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="mt-1 rounded-md bg-indigo-600 px-4 py-2 text-white text-xs md:text-sm shadow-sm hover:bg-indigo-700"
+              onClick={() => setShowComparison(true)}
+            >
+              Compare with other algorithms
+            </button>
+          </div>
+        )}
+
+        <div className="flex gap-4 h-[90%] rounded-2xl border border-indigo-100 bg-white/60 p-4 shadow-sm min-h-[520px] relative overflow-hidden">
           <LeftSidebar
             onAddNode={handleAddNode}
             onAddEdge={handleAddEdge}
@@ -258,6 +293,18 @@ const GraphEditor = () => {
             onConfirmAlgorithm={handleConfirmAlgorithm}
             onCancelAlgorithm={handleCancelAlgorithm}
           />
+
+          {showComparison && (
+            <AlgorithmComparisonPanel
+              algorithm={algorithmState.currentAlgorithm}
+              algorithmGoal={algorithmState.algorithmGoal}
+              isWeighted={graphState.isWeighted}
+              isDirected={graphState.isDirected}
+              startNode={algorithmState.startNode}
+              endNode={algorithmState.endNode}
+              onClose={() => setShowComparison(false)}
+            />
+          )}
         </div>
       </div>
     </section>

@@ -322,18 +322,29 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
       }
     }
 
-    // Final summary step with path information (if requested and computed)
+    // Final summary step with path information (if requested and computed).
+    // This step is used only for explanation/visualization and does not affect traversal.
     if (useShortestPath) {
+      const hasPath = Array.isArray(shortestPath) && shortestPath.length > 0;
+      const finalPath = hasPath ? [...shortestPath] : [];
+      const outcome = hasPath ? 'TARGET_FOUND' : 'TARGET_NOT_FOUND';
+
       steps.push({
         currentNode: null,
         visited: [...visited],
         queue: [],
         parent: { ...parent },
         distance: { ...distance },
-        shortestPath: shortestPath ? [...shortestPath] : [],
-        pathFound: !!shortestPath,
+        shortestPath: finalPath,
+        pathFound: hasPath,
         startNode: startNode,
         endNode: endNodeId,
+        // Extra metadata for AI explanations (read-only).
+        isFinalStep: true,
+        outcome,
+        finalPath,
+        algorithm: 'BFS',
+        algorithmGoal: 'SHORTEST_PATH',
       });
     }
 
@@ -401,16 +412,27 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
     
     dfs(startNode);
 
-    // Final summary step with path information (only when path existence was requested)
+    // Final summary step with path information (only when path existence was requested).
+    // This step is used only for explanation/visualization and does not affect traversal.
     if (usePathExistence) {
+      const hasPath = Array.isArray(foundPath) && foundPath.length > 0;
+      const finalPath = hasPath ? [...foundPath] : [];
+      const outcome = hasPath ? 'TARGET_FOUND' : 'TARGET_NOT_FOUND';
+
       steps.push({
         currentNode: null,
         visited: [...visited],
         stack: [],
-        path: foundPath ? [...foundPath] : [],
-        foundPath: !!foundPath,
+        path: finalPath,
+        foundPath: hasPath,
         startNode: startNode,
         endNode: endNodeId,
+        // Extra metadata for AI explanations (read-only).
+        isFinalStep: true,
+        outcome,
+        finalPath,
+        algorithm: 'DFS',
+        algorithmGoal: 'PATH_EXISTENCE',
       });
     }
 
@@ -711,6 +733,20 @@ const GraphCanvas = forwardRef(({ onStateChange, onAlgorithmStateChange }, ref) 
         }
         if (typeof currentStep.pathFound === 'boolean') {
           statePayload.pathFound = currentStep.pathFound;
+        }
+
+        // Propagate final-outcome metadata for the last step (read-only, for AI explanations).
+        if (typeof currentStep.isFinalStep === 'boolean') {
+          statePayload.isFinalStep = currentStep.isFinalStep;
+        }
+        if (currentStep.finalPath) {
+          statePayload.finalPath = currentStep.finalPath;
+        }
+        if (currentStep.outcome) {
+          statePayload.outcome = currentStep.outcome;
+        }
+        if (currentStep.algorithmGoal) {
+          statePayload.algorithmGoal = currentStep.algorithmGoal;
         }
 
         onAlgorithmStateChange(statePayload);

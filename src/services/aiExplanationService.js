@@ -1,14 +1,11 @@
-// NOTE: AI explanation is an optional, decoupled layer.
-// The BFS / DFS algorithms run entirely in the frontend and remain deterministic.
-// This service only explains why a given step happened and never controls traversal.
+
 
 const PROXY_URL = 'http://localhost:5000/explain-step';
 
 const FALLBACK_MESSAGE =
   'AI explanation unavailable. Showing algorithm visualization only.';
 
-// Generate a short, student-friendly explanation for the current step.
-// If the backend or AI fails, the graph visualization still works normally.
+
 async function getAIExplanation(state) {
   const {
     algorithm,
@@ -26,14 +23,14 @@ async function getAIExplanation(state) {
     finalPath = null,
     startNode = null,
     endNode = null,
+    outcome = null,
   } = state || {};
 
   if (!algorithm || !currentNode) {
     return 'Run an algorithm to see step-by-step explanation.';
   }
 
-  // Build a richer step snapshot that includes current and previous state
-  // so the backend can explain what changed and why it matters.
+ 
   const stepSnapshot = {
     algorithm,
     algorithmGoal,
@@ -50,6 +47,7 @@ async function getAIExplanation(state) {
     finalPath: Array.isArray(finalPath) ? finalPath : null,
     startNode: startNode || null,
     endNode: endNode || null,
+    outcome: outcome || null,
   };
 
   try {
